@@ -19,6 +19,8 @@ public class testMain {
         executeCodeRequest.setInputList(inputStr);
         // 读取代码
         String code = ResourceUtil.readStr("tmpCode/simpleComputeArgs/Main.java", StandardCharsets.UTF_8);
+        // 异常测试 ,超长时间运行、内存溢出、越界读取文件、越界写入文件、越界执行文件等
+//        String code = ResourceUtil.readStr("tmpCode/unsafeCode/WriteFileError.java", StandardCharsets.UTF_8);
         executeCodeRequest.setCode(code);
         executeCodeRequest.setLanguage("java");
         ExecuteCodeResponse executeCodeResponse = javaNativeCodeSandbox.executeCode(executeCodeRequest);

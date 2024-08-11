@@ -1,18 +1,21 @@
 package com.hxoj.hxojcodesandbox;
 
 import cn.hutool.core.io.FileUtil;
+import cn.hutool.dfa.FoundWord;
+import cn.hutool.dfa.WordTree;
 import com.hxoj.hxojcodesandbox.model.ExecuteCodeRequest;
 import com.hxoj.hxojcodesandbox.model.ExecuteCodeResponse;
 import com.hxoj.hxojcodesandbox.model.ExecuteMessage;
 import com.hxoj.hxojcodesandbox.model.JudgeInfo;
+import com.hxoj.hxojcodesandbox.security.MySecurityManager;
 import com.hxoj.hxojcodesandbox.utils.ProcessUtils;
 import lombok.extern.slf4j.Slf4j;
-import org.w3c.dom.ls.LSInput;
 
 import java.io.File;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.UUID;
 
@@ -24,15 +27,41 @@ public class JavaNativeCodeSandbox implements CodeSandbox {
 
     public static final String GLOBAL_CODE_DIR_NAME = "tmpCode";
     public static final String GLOBAL_JAVA_CLASS_NAME = "Main.java";
+    private static final String SECURITY_MANAGER_PATH = "E:\\JavaWeb_Project\\OJ_System\\hxoj-code-sandbox-master\\src\\main\\resources\\security";
+    private static final String SECURITY_MANAGER_CLASS_NAME = "MySecurityManager";
+    // 超时时间
+    public static final Long TIME_OUT = 3000L;
+    // 敏感词汇黑名单
+    private static final List<String> blackList = Arrays.asList("Files", "exec");
+    // 初始化字典树
+    private static final WordTree WORD_TREE = new WordTree();
+    static {
+        WORD_TREE.addWords(blackList);
+    }
+
+
 
 
     @Override
     public ExecuteCodeResponse executeCode(ExecuteCodeRequest executeCodeRequest) {
         ExecuteCodeResponse executeCodeResponse = new ExecuteCodeResponse();
 
-        List<String> inputList = executeCodeRequest.getInputList();
+        // 配置java安全管理器
+        System.setSecurityManager(new MySecurityManager());
+
         String code = executeCodeRequest.getCode();
-        String language = executeCodeRequest.getLanguage();
+        // 解决越界读写运行文件问题，设置黑白名单，加入敏感词汇。
+        // 通过字典树检查代码是否有敏感词汇
+        FoundWord foundWord = WORD_TREE.matchWord(code);
+        if (foundWord != null) {
+            log.info("包含禁止词：" + foundWord.getFoundWord());
+            executeCodeResponse.setMessage("代码中包含禁止词汇：" + foundWord.getFoundWord());
+            // 设置状态码 4 表示用户提交的代码中存在禁止词汇,建议直接封号
+            executeCodeResponse.setStatus(4);
+            return executeCodeResponse;
+        }
+        List<String> inputList = executeCodeRequest.getInputList();
+//        String language = executeCodeRequest.getLanguage();
         // 获取当前的工作目录
         String property = System.getProperty("user.dir");
         // File.separator获取系统文件分隔符
@@ -65,9 +94,25 @@ public class JavaNativeCodeSandbox implements CodeSandbox {
         // 3.执行class文件，并获取输出结果
         List<ExecuteMessage> executeMessageArrayList = new ArrayList<>();
         for (String inputArgs : inputList) {
-            String runCmd = String.format("java -Dfile.encoding=UTF-8 -cp %s Main %s", userCodeParentPath, inputArgs);
+            // 解决无限占用空间（浪费系统内存）问题，在执行class文件的时候，限制最大内存为256m---“-Xmx256m”
+//            String runCmd = String.format("java -Xmx256m -Dfile.encoding=UTF-8 -cp %s Main %s", userCodeParentPath, inputArgs);
+            // 启动子进程执行命令时，设置安全管理器，而不是在外层设置（会限制住测试用例的读写和子命令的执行）
+            String runCmd = String.format("java -Xmx256m -Dfile.encoding=UTF-8 -cp %s;%s -Djava.security.manager=%s Main %s", userCodeParentPath,SECURITY_MANAGER_PATH,SECURITY_MANAGER_CLASS_NAME, inputArgs);
             try {
                 Process process = Runtime.getRuntime().exec(runCmd);
+                // 解决无限睡眠（阻塞程序执行）问题，在执行class文件的时候，开启一个守护进程同步计时
+                new Thread(() -> {
+                    try {
+                            //让线程睡3秒，如果3秒后进程还未结束，则强制结束进程
+                            Thread.sleep(TIME_OUT);
+                            if (process.isAlive()) {
+                                log.info("进程执行超时，强制结束进程");
+                                process.destroy();
+                            }
+                    } catch (InterruptedException e) {
+                        e.printStackTrace();
+                    }
+                }).start();
                 ExecuteMessage executeMessage = ProcessUtils.runProcessAndGetMessage(process, "执行");
                 executeMessageArrayList.add(executeMessage);
                 // 以交互式的方式执行进程并获取信息
