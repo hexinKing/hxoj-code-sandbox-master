@@ -7,7 +7,6 @@ import com.hxoj.hxojcodesandbox.model.ExecuteCodeRequest;
 import com.hxoj.hxojcodesandbox.model.ExecuteCodeResponse;
 import com.hxoj.hxojcodesandbox.model.ExecuteMessage;
 import com.hxoj.hxojcodesandbox.model.JudgeInfo;
-import com.hxoj.hxojcodesandbox.security.MySecurityManager;
 import com.hxoj.hxojcodesandbox.utils.ProcessUtils;
 import lombok.extern.slf4j.Slf4j;
 
@@ -27,7 +26,7 @@ public class JavaNativeCodeSandbox implements CodeSandbox {
 
     public static final String GLOBAL_CODE_DIR_NAME = "tmpCode";
     public static final String GLOBAL_JAVA_CLASS_NAME = "Main.java";
-    private static final String SECURITY_MANAGER_PATH = "E:\\JavaWeb_Project\\OJ_System\\hxoj-code-sandbox-master\\src\\main\\resources\\security";
+    private static final String SECURITY_MANAGER_PATH = "E:\\JavaWeb_Project\\OJ_System\\hxoj-code-sandbox-master\\src\\main\\java\\com\\hxoj\\hxojcodesandbox\\security";
     private static final String SECURITY_MANAGER_CLASS_NAME = "MySecurityManager";
     // 超时时间
     public static final Long TIME_OUT = 3000L;
@@ -40,14 +39,12 @@ public class JavaNativeCodeSandbox implements CodeSandbox {
     }
 
 
-
-
     @Override
     public ExecuteCodeResponse executeCode(ExecuteCodeRequest executeCodeRequest) {
         ExecuteCodeResponse executeCodeResponse = new ExecuteCodeResponse();
 
         // 配置java安全管理器
-        System.setSecurityManager(new MySecurityManager());
+//        System.setSecurityManager(new MySecurityManager());
 
         String code = executeCodeRequest.getCode();
         // 解决越界读写运行文件问题，设置黑白名单，加入敏感词汇。
@@ -88,7 +85,7 @@ public class JavaNativeCodeSandbox implements CodeSandbox {
                 log.info("编译失败:" + executeMessage);
             }
         } catch (IOException e) {
-            getErrorResponse(e);
+            return getErrorResponse(e);
         }
 
         // 3.执行class文件，并获取输出结果
@@ -96,8 +93,20 @@ public class JavaNativeCodeSandbox implements CodeSandbox {
         for (String inputArgs : inputList) {
             // 解决无限占用空间（浪费系统内存）问题，在执行class文件的时候，限制最大内存为256m---“-Xmx256m”
 //            String runCmd = String.format("java -Xmx256m -Dfile.encoding=UTF-8 -cp %s Main %s", userCodeParentPath, inputArgs);
+
+            // 实际情况下，不应该在主类（开发者自己写的程序）中做限制，只需要限制子程序的权限即可
             // 启动子进程执行命令时，设置安全管理器，而不是在外层设置（会限制住测试用例的读写和子命令的执行）
-            String runCmd = String.format("java -Xmx256m -Dfile.encoding=UTF-8 -cp %s;%s -Djava.security.manager=%s Main %s", userCodeParentPath,SECURITY_MANAGER_PATH,SECURITY_MANAGER_CLASS_NAME, inputArgs);
+//            String runCmd = String.format("java -Xmx256m -Dfile.encoding=UTF-8 -cp %s;%s -Djava.security.manager=%s Main %s",
+//                    userCodeParentPath,
+//                    SECURITY_MANAGER_PATH,
+//                    SECURITY_MANAGER_CLASS_NAME,
+//                    inputArgs);
+            // -----------------------------
+            // java 的 -Djava.security.manager 选项只启用安全管理器，并不接受类名作为参数。你需要在代码中手动设置 SecurityManager
+            String runCmd = String.format("java -Xmx256m -Dfile.encoding=UTF-8 -cp %s;%s -Djava.security.manager Main %s",
+                    userCodeParentPath,
+                    SECURITY_MANAGER_PATH,
+                    inputArgs);
             try {
                 Process process = Runtime.getRuntime().exec(runCmd);
                 // 解决无限睡眠（阻塞程序执行）问题，在执行class文件的时候，开启一个守护进程同步计时
@@ -124,7 +133,7 @@ public class JavaNativeCodeSandbox implements CodeSandbox {
                     log.info("执行失败:" + executeMessage);
                 }
             } catch (IOException e) {
-                getErrorResponse(e);
+                return getErrorResponse(e);
             }
         }
 
