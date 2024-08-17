@@ -18,7 +18,7 @@ public class dockerDemo {
         // 拉取镜像
         String imageName = "nginx:latest";
         PullImageCmd pullImageCmd = dockerClient.pullImageCmd(imageName);
-        PullImageResultCallback pullImageResultCallback = new PullImageResultCallback(){
+        PullImageResultCallback pullImageResultCallback = new PullImageResultCallback() {
             @Override
             public void onNext(PullResponseItem item) {
                 System.out.println("下载镜像" + item.getProgress());

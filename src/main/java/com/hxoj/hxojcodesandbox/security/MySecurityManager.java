@@ -4,7 +4,6 @@ import java.security.Permission;
 
 /**
  * 细粒度的权限检查
- *
  */
 public class MySecurityManager extends SecurityManager {
 

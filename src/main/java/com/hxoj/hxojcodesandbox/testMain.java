@@ -13,8 +13,10 @@ import java.util.List;
  */
 public class testMain {
     public static void main(String[] args) {
-//        JavaNativeCodeSandbox javaNativeCodeSandbox = new JavaNativeCodeSandbox();
-        JavaDockerCodeSandbox javaNativeCodeSandbox = new JavaDockerCodeSandbox();
+        // java原生代码测试入口
+        JavaNativeCodeSandbox javaNativeCodeSandbox = new JavaNativeCodeSandbox();
+        // 切换为docker沙箱代码测试入口
+//        JavaDockerCodeSandbox javaNativeCodeSandbox = new JavaDockerCodeSandbox();
         ExecuteCodeRequest executeCodeRequest = new ExecuteCodeRequest();
         List<String> inputStr = Arrays.asList("1 2", "3 4");
         executeCodeRequest.setInputList(inputStr);

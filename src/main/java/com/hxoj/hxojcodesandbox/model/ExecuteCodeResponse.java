@@ -1,4 +1,3 @@
-
 package com.hxoj.hxojcodesandbox.model;
 
 import lombok.AllArgsConstructor;
