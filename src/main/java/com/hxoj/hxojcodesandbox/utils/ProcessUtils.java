@@ -2,9 +2,12 @@ package com.hxoj.hxojcodesandbox.utils;
 
 import cn.hutool.core.util.StrUtil;
 import com.hxoj.hxojcodesandbox.model.ExecuteMessage;
+import org.apache.commons.lang3.StringUtils;
 import org.springframework.util.StopWatch;
 
 import java.io.*;
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * 进程工具类
@@ -33,33 +36,33 @@ public class ProcessUtils {
                 System.out.println(opName + "成功");
                 // 分批获取进程的正常输出
                 BufferedReader bufferedReader = new BufferedReader(new InputStreamReader(runProcess.getInputStream()));
-                StringBuilder stringBuilder = new StringBuilder();
+                List<String> outputList = new ArrayList<>();
                 // 循环读取输出
                 String line;
                 while ((line = bufferedReader.readLine()) != null) {
-                    stringBuilder.append(line).append("\n");
+                    outputList.add(line);
                 }
-                executeMessage.setMessage(stringBuilder.toString());
+                executeMessage.setMessage(StringUtils.join(outputList, "\n"));
             } else {
                 // 编译失败
                 System.out.println(opName + "失败,错误码： " + exitValue);
                 // 分批获取进程的正常输出
                 BufferedReader bufferedReader = new BufferedReader(new InputStreamReader(runProcess.getInputStream()));
-                StringBuilder stringBuilder = new StringBuilder();
+                List<String> outputList = new ArrayList<>();
                 // 循环读取输出
                 String line;
                 while ((line = bufferedReader.readLine()) != null) {
-                    stringBuilder.append(line).append("\n");
+                    outputList.add(line);
                 }
-                executeMessage.setMessage(stringBuilder.toString());
+                executeMessage.setMessage(StringUtils.join(outputList, "\n"));
                 // 分批获取进程的异常输出
                 BufferedReader bufferedErrorReader = new BufferedReader(new InputStreamReader(runProcess.getErrorStream()));
-                StringBuilder errorOutputStr = new StringBuilder();
+                List<String> errorOutputStr = new ArrayList<>();
                 // 循环读取输出
                 while ((line = bufferedErrorReader.readLine()) != null) {
-                    errorOutputStr.append(line).append("\n");
+                    errorOutputStr.add(line);
                 }
-                executeMessage.setErrorMessage(errorOutputStr.toString());
+                executeMessage.setErrorMessage(StringUtils.join(errorOutputStr, "\n"));
             }
             // 停止计时
             stopWatch.stop();
